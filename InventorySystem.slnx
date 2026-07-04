@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Inventory.Application/Inventory.Application.csproj" />
+    <Project Path="src/Inventory.Domain/Inventory.Domain.csproj" />
+    <Project Path="src/Inventory.Infrastructure/Inventory.Infrastructure.csproj" />
+    <Project Path="src/Inventory.Shared/Inventory.Shared.csproj" />
+    <Project Path="src/Inventory.WPF/Inventory.WPF.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Inventory.Tests.Integration/Inventory.Tests.Integration.csproj" />
+    <Project Path="tests/Inventory.Tests.Unit/Inventory.Tests.Unit.csproj" />
+  </Folder>
+</Solution>
