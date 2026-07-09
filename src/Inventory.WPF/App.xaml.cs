@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,73 +13,150 @@ using Inventory.Application.Interfaces.Services;
 using Inventory.WPF.Services;
 using Inventory.WPF.ViewModels;
 using Inventory.WPF.ViewModels.Account;
+using Velopack;
+using Velopack.Sources;
 
-namespace Inventory.WPF;
-
-public partial class App : System.Windows.Application
+namespace Inventory.WPF
 {
-    public static IServiceProvider ServiceProvider { get; private set; } = null!;
-
-    protected override void OnStartup(StartupEventArgs e)
+    public partial class App :  System.Windows.Application
     {
-        base.OnStartup(e);
+        public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
-        // 1. Carregar configurações
-        var builder = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-        var configuration = builder.Build();
+        protected override async void OnStartup(StartupEventArgs e)
+        {
+            // Isso deve rodar ANTES de qualquer outra lógica do app.
+            // Se o Velopack estiver apenas instalando/atualizando o app em background,
+            // ele vai processar os ganchos aqui e fechar o processo imediatamente.
+            VelopackApp.Build().Run();
+            base.OnStartup(e);
 
-        // 2. Configurar DI
-        var services = new ServiceCollection();
+            // 1. Carregar configurações
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-        services.AddSingleton<IConfiguration>(configuration);
+            var configuration = builder.Build();
 
-        services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+            // 2. Configurar DI
+            var services = new ServiceCollection();
 
-        services.AddScoped<IUnitOfWork, UnitOfWork>();
-        services.AddScoped<IProdutoRepository, ProdutoRepository>();
+            services.AddSingleton<IConfiguration>(configuration);
 
-        services.AddScoped<IEstoqueService, EstoqueService>();
-        services.AddScoped<IAuthService, AuthService>();
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseSqlServer(
+                    configuration.GetConnectionString("DefaultConnection")));
 
-        // ---- NOVOS REGISTROS ----
-        services.AddScoped<LoginViewModel>();
-        services.AddScoped<MainViewModel>();
+            // Repositórios
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IProdutoRepository, ProdutoRepository>();
 
-        services.AddSingleton<Views.Account.LoginPage>();
-        services.AddSingleton<Views.MainPage>();
+            // Serviços
+            services.AddScoped<IEstoqueService, EstoqueService>();
+            services.AddScoped<IAuthService, AuthService>();
 
-        services.AddSingleton<INavigationService, NavigationService>();
-        services.AddSingleton<MainWindow>();
+            // ViewModels
+            services.AddScoped<LoginViewModel>();
+            services.AddScoped<MainViewModel>();
 
-        ServiceProvider = services.BuildServiceProvider();
+            // Views
+            services.AddSingleton<Views.Account.LoginPage>();
+            services.AddSingleton<Views.MainPage>();
 
-        // 3. Migrações
-        using (var scope = ServiceProvider.CreateScope())
+            // Navegação
+            services.AddSingleton<INavigationService, NavigationService>();
+
+            // Janela principal
+            services.AddSingleton<MainWindow>();
+
+            ServiceProvider = services.BuildServiceProvider();
+
+            // 3. Aplicar migrações
+            using (var scope = ServiceProvider.CreateScope())
+            {
+                try
+                {
+                    var dbContext = scope.ServiceProvider
+                        .GetRequiredService<AppDbContext>();
+
+                    dbContext.Database.Migrate();
+
+                    System.Diagnostics.Debug.WriteLine("Migrações aplicadas com sucesso!");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        $"Erro ao aplicar migrações:\n\n{ex.Message}",
+                        "Erro",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Error);
+                }
+            }
+
+            // 4. Verificar atualizações
+            await InitializeVelopackAsync();
+
+            // 5. Abrir janela principal
+            var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
+            mainWindow.Show();
+        }
+
+        /// <summary>
+        /// Verifica e instala atualizações usando Velopack.
+        /// </summary>
+        private async Task InitializeVelopackAsync()
         {
             try
             {
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                dbContext.Database.Migrate();
-                System.Diagnostics.Debug.WriteLine("Migrações aplicadas com sucesso!");
+                // CORREÇÃO: URL limpa do repositório, sem o ".git" no final
+                var source = new GithubSource(
+                    "https://github.com/Unknowen2005/InventorySystem",
+                    accessToken: null,
+                    prerelease: false);
+
+                var updateManager = new UpdateManager(source);
+
+                var update = await updateManager.CheckForUpdatesAsync();
+
+                if (update == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Nenhuma atualização encontrada.");
+                    return;
+                }
+
+                System.Diagnostics.Debug.WriteLine($"Nova versão encontrada: {update.TargetFullRelease.Version}");
+
+                // DICA: Use .Version para exibir um texto mais limpo (ex: "1.0.1") no MessageBox
+                var result = MessageBox.Show(
+                    $"Foi encontrada a versão {update.TargetFullRelease.Version}.\n\nDeseja atualizar agora?",
+                    "Atualização disponível",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                {
+                    // Baixar atualização
+                    await updateManager.DownloadUpdatesAsync(update);
+
+                    // Aplicar atualização e reiniciar
+                    updateManager.ApplyUpdatesAndRestart(update);
+
+                    // CORREÇÃO: Força o fechamento da instância atual para que o Velopack 
+                    // possa substituir os arquivos sem erros de "arquivo em uso".
+                    Environment.Exit(0);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erro ao aplicar migrações: {ex.Message}",
-                                "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Diagnostics.Debug.WriteLine($"Erro ao verificar atualizações: {ex.Message}");
             }
         }
 
-        // 4. Abrir MainWindow
-        var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
-        mainWindow.Show();
-    }
+        protected override void OnExit(ExitEventArgs e)
+        {
+            if (ServiceProvider is IDisposable disposable)
+                disposable.Dispose();
 
-    protected override void OnExit(ExitEventArgs e)
-    {
-        (ServiceProvider as IDisposable)?.Dispose();
-        base.OnExit(e);
+            base.OnExit(e);
+        }
     }
 }

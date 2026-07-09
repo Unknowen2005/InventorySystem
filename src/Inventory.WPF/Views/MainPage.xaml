@@ -4,7 +4,11 @@
       Title="Dashboard">
     <Grid Margin="20">
         <StackPanel>
-            <TextBlock Text="Bem-vindo ao Inventory System!" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
+            <TextBlock Text="Bem-vindo ao Inventory System!" FontSize="24" FontWeight="Bold" Margin="0,0,0,5"/>
+
+            <!-- NOVO: Mostrar a versão -->
+            <TextBlock Text="Versão 1.1.0" FontSize="14" Foreground="Gray" Margin="0,0,0,20"/>
+
             <TextBlock Text="{Binding Titulo}" FontSize="18" Foreground="#2C3E50"/>
 
             <Border Background="#ECF0F1" Padding="20" Margin="0,20,0,0" CornerRadius="8">
@@ -20,5 +24,6 @@
                     Cursor="Hand"
                     Click="Sair_Click"/>
         </StackPanel>
+        <TextBlock Text="Desenvolvido por Benevolente" FontSize="14" Foreground="Gray" Margin="0,0,0,20"/>
     </Grid>
 </Page>

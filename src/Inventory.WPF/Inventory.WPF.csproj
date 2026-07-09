@@ -1,35 +1,50 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
-    <ProjectReference Include="..\Inventory.Application\Inventory.Application.csproj" />
-    <ProjectReference Include="..\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
-  </ItemGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
 
-  <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
-  </ItemGroup>
+		<AssemblyName>Gestqo-Inventario</AssemblyName>
 
-  <ItemGroup>
-    <Folder Include="Controls\" />
-    <Folder Include="Resources\Icons\" />
-    <Folder Include="Resources\Styles\" />
-    <Folder Include="Resources\Themes\" />
-    <Folder Include="Views\Movimentacoes\" />
-    <Folder Include="Views\Produtos\" />
-  </ItemGroup>
+		<ApplicationIcon>Resources\Icons\app.ico</ApplicationIcon>
+		<Authors>Departamento de Pesquisas</Authors>
+		<Company>SINGULAR.I</Company>
+		<ProductName>InventorySystem</ProductName>
+		<Version>1.1.0</Version>
+		<FileVersion>1.1.0.0</FileVersion>
+	</PropertyGroup>
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-  </PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\Inventory.Application\Inventory.Application.csproj" />
+		<ProjectReference Include="..\Inventory.Infrastructure\Inventory.Infrastructure.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
+		<PackageReference Include="Velopack" Version="1.2.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Folder Include="Controls\" />
+		<Folder Include="Resources\Styles\" />
+		<Folder Include="Resources\Themes\" />
+		<Folder Include="Views\Movimentacoes\" />
+		<Folder Include="Views\Produtos\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>
