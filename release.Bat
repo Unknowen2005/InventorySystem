@@ -15,7 +15,7 @@ if %ERRORLEVEL% NEQ 0 (
 
 echo.
 echo [3/3] Criando o instalador com Velopack...
-vpk pack --packId "InventorySystem" --packTitle "Inventory System" --packVersion "1.1.0" --outputDir "./Releases" --packAuthors "Inocencio" --mainExe "Gestqo-Inventario.exe" --packDir "./publish"
+vpk pack --packId "InventorySystem" --packTitle "Inventory System" --packVersion "1.2.0" --outputDir "./Releases" --packAuthors "Inocencio" --mainExe "Gestqo-Inventario.exe" --packDir "./publish"
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

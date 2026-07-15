@@ -18,68 +18,67 @@ using Velopack.Sources;
 
 namespace Inventory.WPF
 {
-    public partial class App :  System.Windows.Application
+    public partial class App : System.Windows.Application
     {
         public static IServiceProvider ServiceProvider { get; private set; } = null!;
 
-        protected override async void OnStartup(StartupEventArgs e)
+        protected override void OnStartup(StartupEventArgs e)
         {
-            // Isso deve rodar ANTES de qualquer outra lógica do app.
-            // Se o Velopack estiver apenas instalando/atualizando o app em background,
-            // ele vai processar os ganchos aqui e fechar o processo imediatamente.
+            // 1. Velopack obrigatoriamente primeiro (processa ganchos de instalação/atualização)
             VelopackApp.Build().Run();
             base.OnStartup(e);
 
-            // 1. Carregar configurações
+            // 2. Carregar configurações
             var builder = new ConfigurationBuilder()
                 .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
             var configuration = builder.Build();
 
-            // 2. Configurar DI
+            // 3. Configurar Injeção de Dependência (DI)
             var services = new ServiceCollection();
 
             services.AddSingleton<IConfiguration>(configuration);
 
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(
-                    configuration.GetConnectionString("DefaultConnection")));
+                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
-            // Repositórios
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IProdutoRepository, ProdutoRepository>();
+            // Repositórios e Serviços (Transient para evitar retenção de estado incorreta)
+            services.AddTransient<IUnitOfWork, UnitOfWork>();
+            services.AddTransient<IProdutoRepository, ProdutoRepository>();
+            services.AddTransient<IEstoqueService, EstoqueService>();
+            services.AddTransient<IAuthService, AuthService>();
 
-            // Serviços
-            services.AddScoped<IEstoqueService, EstoqueService>();
-            services.AddScoped<IAuthService, AuthService>();
-
-            // ViewModels
-            services.AddScoped<LoginViewModel>();
-            services.AddScoped<MainViewModel>();
-
-            // Views
-            services.AddSingleton<Views.Account.LoginPage>();
-            services.AddSingleton<Views.MainPage>();
-
-            // Navegação
+            // Navegação e Notificação (Singleton pois mantêm estado global do app)
             services.AddSingleton<INavigationService, NavigationService>();
+            services.AddSingleton<NotificationService>();
+
+            // ViewModels e Views como Transient para evitar vazamento de dados entre telas
+            services.AddTransient<LoginViewModel>();
+            services.AddTransient<MainViewModel>();
+            services.AddTransient<Views.Account.LoginPage>();
+            services.AddTransient<Views.MainPage>();
 
             // Janela principal
-            services.AddSingleton<MainWindow>();
+            services.AddTransient<MainWindow>();
 
             ServiceProvider = services.BuildServiceProvider();
 
-            // 3. Aplicar migrações
+            // 4. Aplicar migrações do Banco de Dados
+            ApplyMigrations();
+
+            // 5. Inicializar rotina assíncrona de boot (Verificação de update e abertura de tela)
+            RunBootstrapperAsync();
+        }
+
+        private void ApplyMigrations()
+        {
             using (var scope = ServiceProvider.CreateScope())
             {
                 try
                 {
-                    var dbContext = scope.ServiceProvider
-                        .GetRequiredService<AppDbContext>();
-
+                    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                     dbContext.Database.Migrate();
-
                     System.Diagnostics.Debug.WriteLine("Migrações aplicadas com sucesso!");
                 }
                 catch (Exception ex)
@@ -91,30 +90,29 @@ namespace Inventory.WPF
                         MessageBoxImage.Error);
                 }
             }
+        }
 
-            // 4. Verificar atualizações
+        private async void RunBootstrapperAsync()
+        {
+            // Primeiro verifica atualização em background sem bloquear a UI imediatamente
             await InitializeVelopackAsync();
 
-            // 5. Abrir janela principal
+            // Abre a MainWindow após a rotina de atualização terminar (se não houver reinicialização)
             var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
         }
 
-        /// <summary>
-        /// Verifica e instala atualizações usando Velopack.
-        /// </summary>
         private async Task InitializeVelopackAsync()
         {
             try
             {
-                // CORREÇÃO: URL limpa do repositório, sem o ".git" no final
                 var source = new GithubSource(
                     "https://github.com/Unknowen2005/InventorySystem",
                     accessToken: null,
                     prerelease: false);
 
+                // No Velopack, o UpdateManager não é IDisposable.
                 var updateManager = new UpdateManager(source);
-
                 var update = await updateManager.CheckForUpdatesAsync();
 
                 if (update == null)
@@ -123,31 +121,34 @@ namespace Inventory.WPF
                     return;
                 }
 
-                System.Diagnostics.Debug.WriteLine($"Nova versão encontrada: {update.TargetFullRelease.Version}");
+                System.Diagnostics.Debug.WriteLine($"✅ Nova versão disponível: {update.TargetFullRelease.Version}");
 
-                // DICA: Use .Version para exibir um texto mais limpo (ex: "1.0.1") no MessageBox
-                var result = MessageBox.Show(
-                    $"Foi encontrada a versão {update.TargetFullRelease.Version}.\n\nDeseja atualizar agora?",
-                    "Atualização disponível",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                // 1. Mostrar notificação na bandeja do sistema
+                var notificationService = ServiceProvider.GetRequiredService<NotificationService>();
+                notificationService.ShowUpdateNotification(update.TargetFullRelease.Version.ToString());
 
-                if (result == MessageBoxResult.Yes)
+                // 2. Aguardar 5 segundos de forma assíncrona antes de exibir o pop-up
+                await Task.Delay(5000);
+
+                // 3. Exibir a janela personalizada (ShowDialog bloqueia a execução aqui até fechar)
+                var updateWindow = new Views.UpdateAvailableWindow(updateManager, update);
+                var result = updateWindow.ShowDialog();
+
+                if (result == true)
                 {
-                    // Baixar atualização
+                    System.Diagnostics.Debug.WriteLine("Baixando atualizações...");
                     await updateManager.DownloadUpdatesAsync(update);
 
-                    // Aplicar atualização e reiniciar
+                    System.Diagnostics.Debug.WriteLine("Aplicando atualizações e reiniciando...");
                     updateManager.ApplyUpdatesAndRestart(update);
 
-                    // CORREÇÃO: Força o fechamento da instância atual para que o Velopack 
-                    // possa substituir os arquivos sem erros de "arquivo em uso".
+                    // Força o encerramento imediato para que o Velopack substitua os executáveis sem travar
                     Environment.Exit(0);
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Erro ao verificar atualizações: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"❌ Erro no Velopack: {ex.Message}");
             }
         }
 

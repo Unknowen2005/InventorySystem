@@ -1,0 +1,84 @@
+﻿<Window x:Class="Inventory.WPF.Views.UpdateAvailableWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Atualização disponível" 
+        Height="250" Width="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#FFFFFF">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Título -->
+        <TextBlock Grid.Row="0" 
+                   Text="🔄 Atualização disponível!" 
+                   FontSize="20" 
+                   FontWeight="Bold" 
+                   Foreground="#2C3E50" 
+                   Margin="0,0,0,15"/>
+
+        <!-- Descrição -->
+        <TextBlock Grid.Row="1" 
+                   Text="{Binding Mensagem}" 
+                   FontSize="14" 
+                   Foreground="#555555" 
+                   TextWrapping="Wrap"
+                   Margin="0,0,0,20"/>
+
+        <!-- Progresso -->
+        <ProgressBar Grid.Row="2" 
+                     x:Name="ProgressBar" 
+                     Height="20" 
+                     Value="0" 
+                     Minimum="0" 
+                     Maximum="100"
+                     Visibility="Collapsed"
+                     Margin="0,0,0,15"/>
+
+        <!-- Botões -->
+        <StackPanel Grid.Row="3" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right">
+
+            <Button Content="Atualizar agora" 
+                    x:Name="BtnUpdate"
+                    Width="120" 
+                    Height="35"
+                    Background="#3498DB" 
+                    Foreground="White" 
+                    FontWeight="Bold"
+                    Cursor="Hand"
+                    Margin="0,0,10,0"
+                    Click="BtnUpdate_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <Button Content="Lembrar depois" 
+                    x:Name="BtnLater"
+                    Width="120" 
+                    Height="35"
+                    Background="#95A5A6" 
+                    Foreground="White" 
+                    FontWeight="Bold"
+                    Cursor="Hand"
+                    Click="BtnLater_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="5"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>
